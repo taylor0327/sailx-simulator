@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAILX | 損益シミュレーター</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F5F4EF;
+  --surface:#FFFFFF;
+  --surface2:#EFEDE6;
+  --border:#E0DDD4;
+  --text:#18170F;
+  --text2:#6A6860;
+  --text3:#A09C90;
+  --accent:#1A5FA8;
+  --accent-light:#EAF2FC;
+  --green:#0F7A58;
+  --green-light:#E2F4EE;
+  --red:#C8392B;
+  --red-light:#FAEAEA;
+  --gold:#9A6B00;
+  --gold-light:#FBF3DC;
+  --radius:10px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.65;}
+.mono{font-family:'DM Mono',monospace;}
+
+/* LOCK OVERLAY */
+.lock-overlay{position:fixed;inset:0;background:rgba(24,23,15,.85);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+.lock-overlay.hidden{display:none;}
+.lock-box{background:var(--surface);border-radius:16px;padding:36px 32px;width:320px;text-align:center;border:1px solid var(--border);}
+.lock-icon{font-size:36px;margin-bottom:14px;}
+.lock-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+.lock-sub{font-size:12px;color:var(--text3);margin-bottom:22px;}
+.lock-row{display:flex;gap:8px;margin-bottom:8px;}
+.lock-input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:22px;font-family:'DM Mono',monospace;letter-spacing:.25em;text-align:center;outline:none;background:var(--surface2);color:var(--text);transition:border-color .15s;}
+.lock-input:focus{border-color:var(--accent);}
+.lock-input.error{border-color:var(--red);}
+.lock-submit{padding:10px 16px;background:var(--text);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans JP',sans-serif;}
+.lock-submit:hover{opacity:.85;}
+.lock-err{font-size:12px;color:var(--red);min-height:18px;margin-bottom:4px;}
+.lock-cancel{font-size:12px;color:var(--text3);cursor:pointer;text-decoration:underline;}
+
+/* MODE BAR */
+.mode-bar{background:var(--text);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.logo{font-size:18px;font-weight:700;letter-spacing:.1em;color:#fff;}
+.logo em{color:#5DCAA5;font-style:normal;}
+.mode-switcher{display:flex;gap:3px;background:rgba(255,255,255,.1);border-radius:8px;padding:4px;}
+.mode-btn{display:flex;align-items:center;gap:6px;padding:6px 13px;border:none;border-radius:6px;background:transparent;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .18s;white-space:nowrap;}
+.mode-btn:hover{color:rgba(255,255,255,.82);}
+.mode-btn.active{background:rgba(255,255,255,.18);color:#fff;}
+.mdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.lk{font-size:10px;opacity:.55;}
+
+/* HERO */
+.hero{background:var(--text);padding:36px 28px 32px;}
+.hero-inner{max-width:980px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.hero h1{font-size:22px;font-weight:300;line-height:1.45;color:#fff;}
+.hero h1 strong{font-weight:700;}
+.hero-sub{font-size:12px;color:#888;margin-top:6px;}
+.mbadge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.05em;flex-shrink:0;}
+.mbadge.internal{background:rgba(255,255,255,.12);color:#ccc;}
+.mbadge.hidden  {background:#1A5FA8;color:#fff;}
+.mbadge.visible {background:#0F7A58;color:#fff;}
+.tstrip{background:#0F7A58;padding:8px 28px;font-size:11px;color:#9FE1CB;display:none;}
+.tstrip.on{display:block;}
+.tstrip-inner{max-width:980px;margin:0 auto;}
+
+/* LAYOUT */
+.main{max-width:980px;margin:0 auto;padding:28px 16px;}
+.layout{display:grid;grid-template-columns:256px 1fr;gap:18px;align-items:start;}
+@media(max-width:700px){.layout{grid-template-columns:1fr;}}
+
+/* LEFT PANELS */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+.panel:last-child{margin-bottom:0;}
+.ph{padding:11px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.pl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);}
+.pb{padding:16px;}
+.plan-list{display:flex;flex-direction:column;gap:5px;}
+.plan-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:transparent;cursor:pointer;text-align:left;width:100%;transition:all .15s;}
+.plan-btn:hover{background:var(--surface2);}
+.plan-btn.active{background:var(--text);border-color:var(--text);}
+.plan-btn.active .pn{color:#fff;}
+.plan-btn.active .ps{color:#888;}
+.pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pn{font-size:13px;font-weight:500;color:var(--text);}
+.ps{font-size:11px;color:var(--text3);margin-top:1px;}
+.slg{margin-bottom:14px;}
+.slt{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.slt span{font-size:12px;color:var(--text2);}
+.slt strong{font-size:15px;font-weight:700;font-family:'DM Mono',monospace;}
+input[type=range]{width:100%;-webkit-appearance:none;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--text);border:3px solid #fff;box-shadow:0 0 0 1.5px var(--border);cursor:pointer;}
+.qrow{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
+.qbtn{padding:3px 10px;font-size:11px;border:1px solid var(--border);border-radius:20px;background:transparent;cursor:pointer;font-family:'DM Mono',monospace;color:var(--text2);transition:all .15s;}
+.qbtn:hover{background:var(--surface2);color:var(--text);}
+
+/* RESULTS */
+.results{display:flex;flex-direction:column;gap:14px;}
+
+/* KPI cards */
+.kg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.kg3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.kc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;position:relative;overflow:hidden;}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kc.kb::before{background:var(--accent);}
+.kc.kg::before{background:var(--green);}
+.kc.kr::before{background:var(--red);}
+.kc.ko::before{background:#BA7517;}
+.kc.kt::before{background:#0F7A58;}
+.kl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
+.kv{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;}
+.kv.b{color:var(--accent);}
+.kv.g{color:var(--green);}
+.kv.r{color:var(--red);}
+.kv.o{color:var(--gold);}
+.ks{font-size:10px;color:var(--text3);margin-top:3px;}
+
+/* Revenue-only hero card */
+.rev-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.rev-top{padding:32px 24px 24px;text-align:center;}
+.rev-top-lbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+.rev-top-val{font-size:48px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;}
+.rev-top-sub{font-size:12px;color:var(--text3);margin-top:10px;}
+.rev-row{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);}
+.rev-cell{padding:18px 20px;border-right:1px solid var(--border);}
+.rev-cell:last-child{border-right:none;}
+.rev-cell-lbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
+.rev-cell-val{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;}
+.rev-foot{padding:10px 20px;font-size:12px;font-weight:500;border-top:1px solid var(--border);}
+.rev-foot.ok{background:var(--green-light);color:var(--green);border-color:#9FE1CB;}
+.rev-foot.ng{background:var(--red-light);color:var(--red);border-color:#F09595;}
+
+/* Flow */
+.flow-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.flow-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;}
+.flow-row{display:flex;align-items:center;}
+.fbox{flex:1;text-align:center;padding:12px 6px;border-radius:7px;}
+.fbox-l{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.fbox-v{font-size:14px;font-weight:700;font-family:'DM Mono',monospace;}
+.farr{color:var(--text3);font-size:16px;flex-shrink:0;padding:0 6px;}
+.fs{background:var(--accent-light);} .fs .fbox-v{color:var(--accent);}
+.fc{background:var(--gold-light);}   .fc .fbox-v{color:var(--gold);}
+.fp{background:var(--green-light);} .fp .fbox-v{color:var(--green);}
+.fn{background:var(--red-light);}   .fn .fbox-v{color:var(--red);}
+
+/* Breakdown table card */
+.bk{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.bk-head{padding:11px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.bk-ttl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);}
+.badge{font-size:10px;padding:2px 10px;border-radius:20px;font-weight:700;}
+.badge.blue{background:var(--accent-light);color:var(--accent);}
+.badge.gold{background:var(--gold-light);color:var(--gold);}
+.badge.teal{background:var(--green-light);color:var(--green);}
+
+table{width:100%;border-collapse:collapse;}
+th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:8px 14px;text-align:right;border-bottom:1px solid var(--border);}
+th:first-child{text-align:left;}
+td{padding:9px 14px;text-align:right;font-size:12px;border-bottom:1px solid var(--border);}
+td:first-child{text-align:left;color:var(--text2);}
+tr.tg td{background:var(--surface2);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:5px 14px;}
+tr.tsub td{background:var(--surface2);font-weight:700;}
+tr.tgrand td{background:var(--text);color:#fff;font-weight:700;}
+tr.tgrand td:first-child{color:#aaa;}
+tr:last-child td{border-bottom:none;}
+.vn{color:var(--red);}
+.vp{color:var(--green);}
+.vb{color:var(--accent);}
+.vo{color:var(--gold);}
+
+/* Split col headers */
+.scols{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);}
+.sch{padding:9px 12px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;text-align:center;}
+.sch.item{background:var(--text2);text-align:left;}
+.sch.cl{background:var(--accent);}
+.sch.sx{background:#BA7517;}
+table.split td{padding:9px 12px;}
+td.cl{background:var(--accent-light);color:var(--accent);}
+td.sx{background:var(--gold-light);color:var(--gold);}
+
+/* Commission bar */
+.cv{padding:14px 16px;border-top:1px solid var(--border);background:var(--surface2);}
+.cv-ttl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.cbar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:7px;}
+.cleg{display:flex;gap:12px;flex-wrap:wrap;}
+.cleg-i{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);}
+.cdot{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
+
+/* ROI & Compare */
+.roi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.roi-row{display:grid;grid-template-columns:repeat(3,1fr);}
+.roi-cell{padding:14px 16px;border-right:1px solid var(--border);}
+.roi-cell:last-child{border-right:none;}
+.roi-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;}
+.roi-val{font-size:17px;font-weight:700;font-family:'DM Mono',monospace;}
+.nbar{padding:9px 16px;background:var(--gold-light);border-top:1px solid #E8D5A0;font-size:11px;color:var(--gold);}
+.cmp{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.cmp-scroll{overflow-x:auto;}
+tr.ca td{background:var(--accent-light);}
+
+footer{text-align:center;padding:28px;font-size:11px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<!-- LOCK OVERLAY -->
+<div class="lock-overlay hidden" id="lock-overlay">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title" id="lock-title">社内用モード</div>
+    <div class="lock-sub">このモードにはパスワードが必要です</div>
+    <div class="lock-row">
+      <input class="lock-input" type="password" id="lock-pw" maxlength="10" placeholder="••••••"
+        oninput="clearErr()" onkeydown="if(event.key==='Enter')tryUnlock()">
+      <button class="lock-submit" onclick="tryUnlock()">解除</button>
+    </div>
+    <div class="lock-err" id="lock-err"></div>
+    <span class="lock-cancel" onclick="cancelLock()">キャンセル</span>
+  </div>
+</div>
+
+<!-- MODE BAR -->
+<div class="mode-bar">
+  <div class="logo">SAIL<em>X</em></div>
+  <div class="mode-switcher">
+    <button class="mode-btn" id="mbtn-internal" onclick="reqMode('internal')">
+      <span class="mdot" style="background:#A09C90"></span>社内用<span class="lk">🔒</span>
+    </button>
+    <button class="mode-btn active" id="mbtn-hidden" onclick="reqMode('hidden')">
+      <span class="mdot" style="background:#5DCAA5"></span>クライアント用
+    </button>
+    <button class="mode-btn" id="mbtn-visible" onclick="reqMode('visible')">
+      <span class="mdot" style="background:#EF9F27"></span>透明性版<span class="lk">🔒</span>
+    </button>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <h1 id="h-title">あなたのスクールに最適な<br><strong>プランをシミュレーション</strong></h1>
+      <div class="hero-sub" id="h-sub">生徒数と客単価を入力するだけで、月々の収益見込みをリアルタイムで確認できます。</div>
+    </div>
+    <div class="mbadge hidden" id="h-badge">クライアント用</div>
+  </div>
+</div>
+<div class="tstrip" id="tstrip">
+  <div class="tstrip-inner">◎ SAILXへの支払い内訳を含む、すべての費用を透明に表示しています。</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+<div class="layout">
+
+<!-- Sidebar -->
+<div>
+  <div class="panel">
+    <div class="ph"><div class="pl">プラン選択</div></div>
+    <div class="pb">
+      <div class="plan-list">
+        <button class="plan-btn active" onclick="setPlan('A12')" id="tab-A12">
+          <div class="pdot" style="background:#378ADD"></div>
+          <div><div class="pn">初期費用なし</div><div class="ps">12ヶ月分割</div></div>
+        </button>
+        <button class="plan-btn" onclick="setPlan('A24')" id="tab-A24">
+          <div class="pdot" style="background:#378ADD"></div>
+          <div><div class="pn">初期費用なし</div><div class="ps">24ヶ月分割</div></div>
+        </button>
+        <button class="plan-btn" onclick="setPlan('B12')" id="tab-B12">
+          <div class="pdot" style="background:#EF9F27"></div>
+          <div><div class="pn">初期費用 ¥100,000</div><div class="ps">12ヶ月分割</div></div>
+        </button>
+        <button class="plan-btn" onclick="setPlan('B24')" id="tab-B24">
+          <div class="pdot" style="background:#EF9F27"></div>
+          <div><div class="pn">初期費用 ¥100,000</div><div class="ps">24ヶ月分割</div></div>
+        </button>
+        <button class="plan-btn" onclick="setPlan('C')" id="tab-C">
+          <div class="pdot" style="background:#7F77DD"></div>
+          <div><div class="pn">月額固定プラン</div><div class="ps">初期¥100,000 + 売上歩合</div></div>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><div class="pl">条件入力</div></div>
+    <div class="pb">
+      <div class="slg">
+        <div class="slt"><span>生徒数</span><strong id="u-out">20人</strong></div>
+        <input type="range" id="users" min="1" max="50" step="1" value="20" oninput="update()">
+      </div>
+      <div class="slg">
+        <div class="slt"><span>月間客単価</span><strong id="p-out">¥10,000</strong></div>
+        <input type="range" id="price" min="5000" max="30000" step="1000" value="10000" oninput="update()">
+        <div class="qrow">
+          <button class="qbtn" onclick="setPrice(10000)">¥10,000</button>
+          <button class="qbtn" onclick="setPrice(20000)">¥20,000</button>
+          <button class="qbtn" onclick="setPrice(25000)">¥25,000</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="results" id="results"></div>
+</div>
+</div>
+
+<footer>© SAILX — このシミュレーションは参考値です（税抜き）。詳細はご担当者にお問い合わせください。</footer>
+
+<script>
+const PASS='112233';
+const PLANS={
+  A12:{label:'初期なし・12分割',  badge:'初期費用なし',bc:'blue', initFee:0,      devFee:550000,months:12,baseFee:50000,userFee:2500},
+  A24:{label:'初期なし・24分割',  badge:'初期費用なし',bc:'blue', initFee:0,      devFee:600000,months:24,baseFee:50000,userFee:2500},
+  B12:{label:'初期10万・12分割',  badge:'初期¥100,000',bc:'gold', initFee:100000, devFee:550000,months:12,baseFee:50000,userFee:2500},
+  B24:{label:'初期10万・24分割',  badge:'初期¥100,000',bc:'gold', initFee:100000, devFee:550000,months:24,baseFee:50000,userFee:2500},
+  C:  {label:'月額固定プラン',    badge:'月額固定',    bc:'teal', initFee:100000, devFee:0,     months:0, baseFee:70833,userFee:2500}
+};
+let mode='hidden', plan='A12', pending=null;
+const unlocked={internal:false,visible:false};
+
+/* ── AUTH ── */
+function reqMode(m){
+  if(m==='hidden'){doMode('hidden');return;}
+  if(unlocked[m]){doMode(m);return;}
+  pending=m;
+  document.getElementById('lock-title').textContent=m==='internal'?'社内用モード':'透明性版モード';
+  document.getElementById('lock-pw').value='';
+  document.getElementById('lock-err').textContent='';
+  document.getElementById('lock-pw').classList.remove('error');
+  document.getElementById('lock-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('lock-pw').focus(),60);
+}
+function tryUnlock(){
+  if(document.getElementById('lock-pw').value===PASS){
+    unlocked[pending]=true;
+    document.getElementById('lock-overlay').classList.add('hidden');
+    doMode(pending); pending=null;
+  } else {
+    document.getElementById('lock-err').textContent='パスワードが違います';
+    document.getElementById('lock-pw').classList.add('error');
+    document.getElementById('lock-pw').value='';
+  }
+}
+function cancelLock(){document.getElementById('lock-overlay').classList.add('hidden');pending=null;}
+function clearErr(){document.getElementById('lock-err').textContent='';document.getElementById('lock-pw').classList.remove('error');}
+
+const META={
+  internal:{title:'プラン別<strong>損益シミュレーター</strong>',sub:'社内確認・提案準備用 — 全データ表示モード',badge:'社内用',bc:'internal'},
+  hidden:  {title:'あなたのスクールに最適な<br><strong>プランをシミュレーション</strong>',sub:'生徒数と客単価を入力するだけで、月々の収益見込みをリアルタイムで確認できます。',badge:'クライアント用',bc:'hidden'},
+  visible: {title:'あなたのスクールに最適な<br><strong>プランをシミュレーション</strong>',sub:'生徒数と客単価を入力するだけで、月々の収益見込みをリアルタイムで確認できます。',badge:'費用透明性版',bc:'visible'}
+};
+function doMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mbtn-'+m).classList.add('active');
+  const mt=META[m];
+  document.getElementById('h-title').innerHTML=mt.title;
+  document.getElementById('h-sub').textContent=mt.sub;
+  const b=document.getElementById('h-badge');
+  b.className='mbadge '+mt.bc; b.textContent=mt.badge;
+  document.getElementById('tstrip').className='tstrip'+(m==='visible'?' on':'');
+  update();
+}
+
+/* ── CALC ── */
+function setPlan(p){plan=p;document.querySelectorAll('.plan-btn').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+p).classList.add('active');update();}
+function setPrice(v){document.getElementById('price').value=v;update();}
+function yen(v){return '¥'+Math.round(v).toLocaleString('ja-JP');}
+function comm(s){
+  const t1=Math.min(s,200000),t2=Math.min(Math.max(s-200000,0),200000),t3=Math.max(s-400000,0);
+  return{c1:t1*.3,c2:t2*.4,c3:t3*.5,t1,t2,t3,total:t1*.3+t2*.4+t3*.5};
+}
+function calc(k,u,p){
+  const pl=PLANS[k], sales=u*p;
+  const sur=pl.months>0?Math.round((pl.devFee-pl.initFee)/pl.months):0;
+  const fixed=pl.baseFee+u*pl.userFee+sur;
+  const cm=comm(sales), total=fixed+cm.total;
+  return{sales,sur,fixed,cm,total,net:sales-total,pl};
+}
+function be(k,p){for(let u=1;u<=50;u++)if(calc(k,u,p).net>=0)return u; return null;}
+
+function cbarHTML(r){
+  const s=r.sales||1;
+  const w0=Math.round(Math.max(s-r.cm.t1-r.cm.t2-r.cm.t3,0)/s*100);
+  const w1=Math.round(r.cm.t1/s*100),w2=Math.round(r.cm.t2/s*100),w3=100-w0-w1-w2;
+  return `<div class="cbar"><div style="width:${w0}%;background:var(--border)"></div><div style="width:${w1}%;background:#B5D4F4"></div><div style="width:${w2}%;background:#378ADD"></div><div style="width:${w3}%;background:#0C447C"></div></div>
+  <div class="cleg"><div class="cleg-i"><div class="cdot" style="background:#B5D4F4"></div>〜¥200k×30%</div><div class="cleg-i"><div class="cdot" style="background:#378ADD"></div>¥200k〜¥400k×40%</div><div class="cleg-i"><div class="cdot" style="background:#0C447C"></div>¥400k超×50%</div></div>`;
+}
+
+/* ── RENDER: CLIENT HIDDEN — revenue only, no costs shown ── */
+function renderHidden(r,u,p){
+  const margin=r.sales>0?Math.round(r.net/r.sales*100):0;
+  const beu=be(plan,p);
+  const keys=['A12','A24','B12','B24','C'];
+  let crow='';
+  keys.forEach(k=>{
+    const rc=calc(k,u,p);
+    const bk=be(k,p);
+    const mg=rc.sales>0?Math.round(rc.net/rc.sales*100):0;
+    crow+=`<tr${k===plan?' class="ca"':''}>
+      <td>${PLANS[k].label}</td>
+      <td class="mono vb">${yen(rc.sales)}</td>
+      <td class="mono ${rc.net>=0?'vp':'vn'}">${yen(rc.net)}</td>
+      <td class="mono ${mg>=0?'vp':'vn'}">${mg}%</td>
+      <td class="mono ${bk?'vp':'vn'}">${bk?bk+'人':'50人超'}</td>
+    </tr>`;
+  });
+  return `
+    <div class="rev-hero">
+      <div class="rev-top">
+        <div class="rev-top-lbl">月間手取（推定）</div>
+        <div class="rev-top-val ${r.net>=0?'vp':'vn'}">${yen(r.net)}</div>
+        <div class="rev-top-sub">${u}人 × ${yen(p)} の場合</div>
+      </div>
+      <div class="rev-row">
+        <div class="rev-cell"><div class="rev-cell-lbl">月間売上</div><div class="rev-cell-val vb">${yen(r.sales)}</div></div>
+        <div class="rev-cell"><div class="rev-cell-lbl">収益率</div><div class="rev-cell-val ${margin>=0?'vp':'vn'}">${margin}%</div></div>
+      </div>
+      <div class="rev-foot ${beu?'ok':'ng'}">${beu?`${beu}人以上から黒字（客単価 ${yen(p)}）`:`現在の客単価では50人以内で黒字になりません`}</div>
+    </div>
+    <div class="cmp">
+      <div class="ph" style="border-radius:0"><div class="pl">全プラン 収益比較</div></div>
+      <div class="cmp-scroll"><table>
+        <thead><tr><th style="text-align:left">プラン</th><th>月間売上</th><th>月間手取</th><th>収益率</th><th>損益分岐</th></tr></thead>
+        <tbody>${crow}</tbody>
+      </table></div>
+    </div>`;
+}
+
+/* ── RENDER: INTERNAL ── */
+function renderInternal(r,u,p){
+  const pl=r.pl, beu=be(plan,p), margin=r.sales>0?Math.round(r.net/r.sales*100):0;
+  let rows='';
+  rows+=`<tr class="tg"><td colspan="3">固定費</td></tr>`;
+  if(pl.initFee>0) rows+=`<tr><td>初期費用（初月一括）</td><td class="vn">−${yen(pl.initFee)}</td><td class="vo">+${yen(pl.initFee)}</td></tr>`;
+  rows+=`<tr><td>基本料金</td><td class="vn">−${yen(pl.baseFee)}</td><td class="vo">+${yen(pl.baseFee)}</td></tr>`;
+  rows+=`<tr><td>ユーザー料金（${u}人×¥2,500）</td><td class="vn">−${yen(u*2500)}</td><td class="vo">+${yen(u*2500)}</td></tr>`;
+  if(pl.months>0) rows+=`<tr><td>開発費分割（${pl.months}ヶ月）</td><td class="vn">−${yen(r.sur)}</td><td class="vo">+${yen(r.sur)}</td></tr>`;
+  rows+=`<tr class="tsub"><td>固定費 小計</td><td class="vn">−${yen(r.fixed)}</td><td class="vo">+${yen(r.fixed)}</td></tr>`;
+  rows+=`<tr class="tg"><td colspan="3">売上歩合</td></tr>`;
+  rows+=`<tr><td>〜¥200,000 × 30%</td><td class="vn">−${yen(r.cm.c1)}</td><td class="vo">+${yen(r.cm.c1)}</td></tr>`;
+  if(r.cm.t2>0) rows+=`<tr><td>¥200k〜¥400k × 40%</td><td class="vn">−${yen(r.cm.c2)}</td><td class="vo">+${yen(r.cm.c2)}</td></tr>`;
+  if(r.cm.t3>0) rows+=`<tr><td>¥400k超 × 50%</td><td class="vn">−${yen(r.cm.c3)}</td><td class="vo">+${yen(r.cm.c3)}</td></tr>`;
+  rows+=`<tr class="tsub"><td>歩合 小計</td><td class="vn">−${yen(r.cm.total)}</td><td class="vo">+${yen(r.cm.total)}</td></tr>`;
+  rows+=`<tr class="tgrand"><td>月額合計</td><td>−${yen(r.total)}</td><td>+${yen(r.total)}</td></tr>`;
+
+  const keys=['A12','A24','B12','B24','C'];
+  let crow='';
+  keys.forEach(k=>{
+    const rc=calc(k,u,p); const bk=be(k,p);
+    crow+=`<tr${k===plan?' class="ca"':''}>
+      <td>${PLANS[k].label}</td>
+      <td class="mono vn">−${yen(rc.total)}</td><td class="mono vo">${yen(rc.total)}</td>
+      <td class="mono vb">${yen(rc.sales)}</td>
+      <td class="mono ${rc.net>=0?'vp':'vn'}">${yen(rc.net)}</td>
+      <td class="mono ${bk?'vp':'vn'}">${bk?bk+'人':'50人超'}</td>
+    </tr>`;
+  });
+
+  return `
+    <div class="kg3">
+      <div class="kc kb"><div class="kl">SAILX月収益</div><div class="kv b">${yen(r.total)}</div><div class="ks">固定 ${yen(r.fixed)} ＋ 歩合 ${yen(r.cm.total)}</div></div>
+      <div class="kc ko"><div class="kl">クライアント月負担</div><div class="kv o">${yen(r.total)}</div></div>
+      <div class="kc ${r.net>=0?'kg':'kr'}"><div class="kl">クライアント手取</div><div class="kv ${r.net>=0?'g':'r'}">${yen(r.net)}</div><div class="ks">収益率 ${margin}%</div></div>
+    </div>
+    <div class="bk">
+      <div class="bk-head"><span class="bk-ttl">費用内訳（クライアント ↔ SAILX）</span><span class="badge ${pl.bc}">${pl.badge}</span></div>
+      <div class="scols"><div class="sch item">費用項目</div><div class="sch cl">クライアント負担</div><div class="sch sx">SAILX収益</div></div>
+      <table class="split"><tbody>${rows}</tbody></table>
+      <div class="cv"><div class="cv-ttl">売上歩合の構成</div>${cbarHTML(r)}</div>
+    </div>
+    <div class="roi">
+      <div class="ph" style="border-radius:0"><div class="pl">収益シミュレーション</div></div>
+      <div class="roi-row">
+        <div class="roi-cell"><div class="roi-lbl">月間売上</div><div class="roi-val vb">${yen(r.sales)}</div></div>
+        <div class="roi-cell"><div class="roi-lbl">収益率</div><div class="roi-val ${margin>=0?'vp':'vn'}">${margin}%</div></div>
+        <div class="roi-cell"><div class="roi-lbl">損益分岐 生徒数</div><div class="roi-val ${beu?'vp':'vn'}">${beu?beu+'人':'50人超'}</div></div>
+      </div>
+      <div class="nbar">${beu?`現在の客単価（${yen(p)}）では、${beu}人以上から黒字になります。`:`現在の客単価では50人の範囲内で黒字になりません。`}</div>
+    </div>
+    <div class="cmp">
+      <div class="ph" style="border-radius:0"><div class="pl">全プラン比較</div></div>
+      <div class="cmp-scroll"><table>
+        <thead><tr><th style="text-align:left">プラン</th><th>月額負担</th><th>SAILX収益</th><th>月間売上</th><th>手取</th><th>損益分岐</th></tr></thead>
+        <tbody>${crow}</tbody>
+      </table></div>
+    </div>`;
+}
+
+/* ── RENDER: VISIBLE ── */
+function renderVisible(r,u,p){
+  const pl=r.pl, beu=be(plan,p), margin=r.sales>0?Math.round(r.net/r.sales*100):0;
+  let rows='';
+  rows+=`<tr class="tg"><td colspan="3">固定費</td></tr>`;
+  if(pl.initFee>0) rows+=`<tr><td>初期費用（初月一括）</td><td class="vn">−${yen(pl.initFee)}</td><td class="vo">+${yen(pl.initFee)}</td></tr>`;
+  rows+=`<tr><td>基本料金</td><td class="vn">−${yen(pl.baseFee)}</td><td class="vo">+${yen(pl.baseFee)}</td></tr>`;
+  rows+=`<tr><td>ユーザー料金（${u}人×¥2,500）</td><td class="vn">−${yen(u*2500)}</td><td class="vo">+${yen(u*2500)}</td></tr>`;
+  if(pl.months>0) rows+=`<tr><td>開発費分割（${pl.months}ヶ月）</td><td class="vn">−${yen(r.sur)}</td><td class="vo">+${yen(r.sur)}</td></tr>`;
+  rows+=`<tr class="tsub"><td>固定費 小計</td><td class="vn">−${yen(r.fixed)}</td><td class="vo">+${yen(r.fixed)}</td></tr>`;
+  rows+=`<tr class="tg"><td colspan="3">売上歩合</td></tr>`;
+  rows+=`<tr><td>〜¥200,000 × 30%</td><td class="vn">−${yen(r.cm.c1)}</td><td class="vo">+${yen(r.cm.c1)}</td></tr>`;
+  if(r.cm.t2>0) rows+=`<tr><td>¥200k〜¥400k × 40%</td><td class="vn">−${yen(r.cm.c2)}</td><td class="vo">+${yen(r.cm.c2)}</td></tr>`;
+  if(r.cm.t3>0) rows+=`<tr><td>¥400k超 × 50%</td><td class="vn">−${yen(r.cm.c3)}</td><td class="vo">+${yen(r.cm.c3)}</td></tr>`;
+  rows+=`<tr class="tsub"><td>歩合 小計</td><td class="vn">−${yen(r.cm.total)}</td><td class="vo">+${yen(r.cm.total)}</td></tr>`;
+  rows+=`<tr class="tgrand"><td>合計</td><td class="cl">−${yen(r.total)}</td><td class="sx">+${yen(r.total)}</td></tr>`;
+
+  const keys=['A12','A24','B12','B24','C'];
+  let crow='';
+  keys.forEach(k=>{
+    const rc=calc(k,u,p); const bk=be(k,p);
+    crow+=`<tr${k===plan?' class="ca"':''}>
+      <td>${PLANS[k].label}</td>
+      <td class="mono vn">−${yen(rc.total)}</td><td class="mono vo">${yen(rc.total)}</td>
+      <td class="mono vb">${yen(rc.sales)}</td>
+      <td class="mono ${rc.net>=0?'vp':'vn'}">${yen(rc.net)}</td>
+      <td class="mono ${bk?'vp':'vn'}">${bk?bk+'人':'50人超'}</td>
+    </tr>`;
+  });
+
+  return `
+    <div class="kg3">
+      <div class="kc kb"><div class="kl">月間売上</div><div class="kv b">${yen(r.sales)}</div><div class="ks">${u}人 × ${yen(p)}</div></div>
+      <div class="kc ko"><div class="kl">SAILXへの支払い</div><div class="kv o">${yen(r.total)}</div><div class="ks">固定 ${yen(r.fixed)} ＋ 歩合 ${yen(r.cm.total)}</div></div>
+      <div class="kc ${r.net>=0?'kg':'kr'}"><div class="kl">月間手取</div><div class="kv ${r.net>=0?'g':'r'}">${yen(r.net)}</div><div class="ks">収益率 ${margin}%</div></div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-lbl">収益フロー</div>
+      <div class="flow-row">
+        <div class="fbox fs"><div class="fbox-l">月間売上</div><div class="fbox-v">${yen(r.sales)}</div></div>
+        <div class="farr">−</div>
+        <div class="fbox fc"><div class="fbox-l">SAILX支払い</div><div class="fbox-v">${yen(r.total)}</div></div>
+        <div class="farr">=</div>
+        <div class="fbox ${r.net>=0?'fp':'fn'}"><div class="fbox-l">手取</div><div class="fbox-v">${yen(r.net)}</div></div>
+      </div>
+    </div>
+    <div class="bk">
+      <div class="scols"><div class="sch item">費用項目</div><div class="sch cl">クライアント負担</div><div class="sch sx">SAILX収益</div></div>
+      <table class="split"><tbody>${rows}</tbody></table>
+      <div class="cv"><div class="cv-ttl">売上歩合の構成</div>${cbarHTML(r)}</div>
+    </div>
+    <div class="roi">
+      <div class="ph" style="border-radius:0"><div class="pl">収益シミュレーション</div></div>
+      <div class="roi-row">
+        <div class="roi-cell"><div class="roi-lbl">月間売上</div><div class="roi-val vb">${yen(r.sales)}</div></div>
+        <div class="roi-cell"><div class="roi-lbl">収益率</div><div class="roi-val ${margin>=0?'vp':'vn'}">${margin}%</div></div>
+        <div class="roi-cell"><div class="roi-lbl">損益分岐 生徒数</div><div class="roi-val ${beu?'vp':'vn'}">${beu?beu+'人':'50人超'}</div></div>
+      </div>
+      <div class="nbar">${beu?`現在の客単価（${yen(p)}）では、${beu}人以上から黒字になります。`:`現在の客単価では50人の範囲内で黒字になりません。`}</div>
+    </div>
+    <div class="cmp">
+      <div class="ph" style="border-radius:0"><div class="pl">全プラン比較</div></div>
+      <div class="cmp-scroll"><table>
+        <thead><tr><th style="text-align:left">プラン</th><th>月額負担</th><th>SAILX収益</th><th>月間売上</th><th>手取</th><th>損益分岐</th></tr></thead>
+        <tbody>${crow}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function update(){
+  const u=+document.getElementById('users').value, p=+document.getElementById('price').value;
+  document.getElementById('u-out').textContent=u+'人';
+  document.getElementById('p-out').textContent=yen(p);
+  const r=calc(plan,u,p);
+  let html='';
+  if(mode==='internal') html=renderInternal(r,u,p);
+  else if(mode==='hidden') html=renderHidden(r,u,p);
+  else html=renderVisible(r,u,p);
+  document.getElementById('results').innerHTML=html;
+}
+update();
+</script>
+</body>
+</html>
